@@ -143,34 +143,39 @@ trim_done:
     call exit
 
 empty_line:
-    la a0, err_empty
-    call printf
+    li a0, 2
+    la a1, err_empty
+    call fprintf
     li a0, 1
     call exit
 
 need_two_numbers:
-    la a0, err_two
-    call printf
+    li a0, 2
+    la a1, err_two
+    call fprintf
     li a0, 1
     call exit
 
 second_missing:
-    la a0, err_second_missing
-    call printf
+    li a0, 2
+    la a1, err_second_missing
+    call fprintf
     li a0, 1
     call exit
 
 invalid_first:
-    la a0, err_invalid_first
-    mv a1, s4
-    call printf
+    li a0, 2
+    la a1, err_invalid_first
+    mv a2, s4
+    call fprintf
     li a0, 1
     call exit
 
 invalid_second:
-    la a0, err_invalid_second
-    mv a1, s5
-    call printf
+    li a0, 2
+    la a1, err_invalid_second
+    mv a2, s5
+    call fprintf
     li a0, 1
     call exit
 

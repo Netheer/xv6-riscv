@@ -64,19 +64,19 @@ int main(int argc, char* argv[]) {
 
 	int rc = read_line(0, buf, sizeof(buf));
 	if (rc == -1) {
-		printf("Error: reading failed\n");
+		fprintf(2, "Error: reading failed\n");
 		exit(1);
 	}
 	if (rc == -2) {
-		printf("Error: buffer overflow\n");
+		fprintf(2, "Error: buffer overflow\n");
 		exit(1);
 	}
 	if (rc == -3) {
-		printf("Error: empty input\n");
+		fprintf(2, "Error: empty input\n");
 		exit(1);
 	}
 	if (rc == 0) {
-		printf("Error: empty line\n");
+		fprintf(2, "Error: empty line\n");
 		exit(1);
 	}
 	printf("|%s|\n", buf);
@@ -85,14 +85,14 @@ int main(int argc, char* argv[]) {
 	while (*p == ' ') p++;
 
 	if (*p == '\0') {
-		printf("Error: empty line\n");
+		fprintf(2, "Error: empty line\n");
 		exit(1);
 	}
 
 	char* space = p;
 	while (*space != '\0' && *space != ' ') space++;
 	if (*space == '\0') {
-		printf("Error: expected two numbers separated by a space\n");
+		fprintf(2, "Error: expected two numbers separated by a space\n");
 		exit(1);
 	}
 	
@@ -103,7 +103,7 @@ int main(int argc, char* argv[]) {
 	while (*q == ' ') q++;
 
 	if (*q == '\0') {
-		printf("Error: second number is missing\n");
+		fprintf(2, "Error: second number is missing\n");
 		exit(1);
 	}
 
@@ -117,17 +117,17 @@ int main(int argc, char* argv[]) {
 	char *b_str = q;
 
 	if (!is_valid_int_number(a_str)) {
-		printf("Error: first number is not a valid integer: %s\n", a_str);
+		fprintf(2, "Error: first number is not a valid integer: %s\n", a_str);
 		exit(1);
 	}
 	if (!is_valid_int_number(b_str)) {
-		printf("Error: second number is not a valid integer: %s\n", b_str);
+		fprintf(2, "Error: second number is not a valid integer: %s\n", b_str);
 		exit(1);
 	}
 
 	int a, b;
-	if (atoi_signed(a_str, &a) < 0) { printf("Error: first number is not a valid integer: %s\n", a_str); exit(1); }
-	if (atoi_signed(b_str, &b) < 0) { printf("Error: second number is not a valid integer: %s\n", b_str); exit(1); }
+	if (atoi_signed(a_str, &a) < 0) { fprintf(2, "Error: first number is not a valid integer: %s\n", a_str); exit(1); }
+	if (atoi_signed(b_str, &b) < 0) { fprintf(2, "Error: second number is not a valid integer: %s\n", b_str); exit(1); }
 
 	int s = add(a, b);
 	printf("%d\n", s);
