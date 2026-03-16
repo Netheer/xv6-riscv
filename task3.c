@@ -6,7 +6,7 @@
 #include <sys/wait.h>
 
 
-static void write_all(int fd, const void* buffer, size_t n) {
+static int write_all(int fd, const void* buffer, size_t n) {
     const unsigned char* p = (const unsigned char*)buffer;
     size_t off = 0;
 
@@ -16,11 +16,11 @@ static void write_all(int fd, const void* buffer, size_t n) {
             if (errno == EINTR) {
                 continue;
             }
-            perror("write");
-            exit(1);
+            return -1;
         }
         off += (size_t)m;
     }
+	return 0;
 }
 
 int main(int argc, char* argv[]) {
@@ -34,11 +34,19 @@ int main(int argc, char* argv[]) {
     pid_t pid = fork();
     if (pid < 0) {
         perror("fork");
+		if (close(pipefd[0]) < 0)
+			perror("cloes pipefd[0]");
+		if (close(pipefd[1]) < 0)
+			perror("close pipefd[1]");
+
         return 1;
     }
 
     if (pid == 0) {
-        close(pipefd[1]);
+    	if (close(pipefd[1]) < 0) {
+    		perror("child close pipefd[1]");
+    		exit(1);
+    	}
 
         unsigned char buffer[4096];
 
@@ -49,20 +57,37 @@ int main(int argc, char* argv[]) {
                     continue;
                 }
                 perror("read");
-                exit(1);
+            	if (close(pipefd[1]) < 0)
+            		perror("child close pipefd[0]");
+            	exit(1);
             }
             if (m == 0) {
                 break;
             }
 
-            write_all(STDOUT_FILENO, buffer, (size_t)m);
+        	if (write_all(STDOUT_FILENO, buffer, (size_t)m) < 0) {
+        		perror("write");
+        		if (close(pipefd[0]) < 0)
+        			perror("child close pipefd[0]");
+        		exit(1);
+        	}
         }
 
-        close(pipefd[0]);
+    	if (close(pipefd[0]) < 0) {
+    		perror("child close pipefd[0]");
+    		exit(1);
+    	}
+
         exit(0);
     }
 
-    close (pipefd[0]);
+	if (close(pipefd[0]) < 0) {
+		perror("parent close pipefd[0]");
+		if (close(pipefd[1]) < 0)
+			perror("parent close pipefd[1]");
+		waitpid(pid, NULL, 0);
+		return 1;
+	}
 
     unsigned char outbuffer[4096];
     size_t used = 0;
@@ -71,18 +96,45 @@ int main(int argc, char* argv[]) {
         size_t len = strlen(argv[i]);
 
         if (len + 1 > sizeof(outbuffer)) {
-            if (used > 0) {
-                write_all(pipefd[1], outbuffer, used);
-                used = 0;
-            }
-            write_all(pipefd[1], argv[i], len);
-            write_all(pipefd[1], "\n", 1);
-            continue;
-        }
+        	if (used > 0) {
+        		if (write_all(pipefd[1], outbuffer, used) < 0) {
+        			perror("write");
+        			if (close(pipefd[1]) < 0)
+        				perror("parent close pipefd[1]");
+        			waitpid(pid, NULL, 0);
+        			return 1;
+        		}
+        		used = 0;
+        	}
+
+    		if (write_all(pipefd[1], argv[i], len) < 0) {
+    			perror("write");
+    			if (close(pipefd[1]) < 0)
+    				perror("parent close pipefd[1]");
+    			waitpid(pid, NULL, 0);
+    			return 1;
+    		}
+
+        	if (write_all(pipefd[1], "\n", 1) < 0) {
+        		perror("write");
+        		if (close(pipefd[1]) < 0)
+        			perror("parent close pipefd[1]");
+        		waitpid(pid, NULL, 0);
+        		return 1;
+        	}
+
+			continue;
+		}
 
         if (used + len + 1 > sizeof(outbuffer)) {
-            write_all(pipefd[1], outbuffer, used);
-            used = 0;
+        	if (write_all(pipefd[1], outbuffer, used) < 0) {
+        		perror("write");
+        		if (close(pipefd[1]) < 0)
+        			perror("parent close pipefd[1]");
+        		waitpid(pid, NULL, 0);
+        		return 1;
+        	}
+        	used = 0;
         }
 
         memcpy(outbuffer + used, argv[i], len);
@@ -90,17 +142,34 @@ int main(int argc, char* argv[]) {
         outbuffer[used++] = '\n';
     }
 
-    if (used > 0) {
-        write_all(pipefd[1], outbuffer, used);
-    }
+	if (used > 0) {
+		if (write_all(pipefd[1], outbuffer, used) < 0) {
+			perror("write");
+			if (close(pipefd[1]) < 0)
+				perror("parent close pipefd[1]");
+			waitpid(pid, NULL, 0);
+			return 1;
+		}
+	}
 
-    close(pipefd[1]);
+	if (close(pipefd[1]) < 0) {
+		perror("parent close pipefd[1]");
+		waitpid(pid, NULL, 0);
+		return 1;
+	}
 
-    int status = 0;
-    if (waitpid(pid, &status, 0) < 0) {
-        perror("waitpid");
-        return 1;
-    }
+	int status = 0;
+	if (waitpid(pid, &status, 0) < 0) {
+		perror("waitpid");
+		return 1;
+	}
 
-    return 0;
+	if (WIFEXITED(status)) {
+		return WEXITSTATUS(status);
+	}
+	if (WIFSIGNALED(status)) {
+		return 128 + WTERMSIG(status);
+	}
+
+	return 1;
 }
