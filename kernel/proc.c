@@ -5,6 +5,7 @@
 #include "spinlock.h"
 #include "proc.h"
 #include "defs.h"
+#include "procinfo.h"
 
 struct cpu cpus[NCPU];
 
@@ -15,10 +16,89 @@ struct proc *initproc;
 int nextpid = 1;
 struct spinlock pid_lock;
 
+struct spinlock wait_lock;
+
 extern void forkret(void);
 static void freeproc(struct proc *p);
 
 extern char trampoline[]; // trampoline.S
+
+static void procstate_to_str(enum procstate state, char *buf, int buflen) {
+  switch (state) {
+    case UNUSED:
+      safestrcpy(buf, "UNUSED", buflen);
+      break;
+    case USED:
+      safestrcpy(buf, "USED", buflen);
+      break;
+    case SLEEPING:
+      safestrcpy(buf, "SLEEPING", buflen);
+      break;
+    case RUNNABLE:
+      safestrcpy(buf, "RUNNABLE", buflen);
+      break;
+    case RUNNING:
+      safestrcpy(buf, "RUNNING", buflen);
+      break;
+    case ZOMBIE:
+      safestrcpy(buf, "ZOMBIE", buflen);
+      break;
+    default:
+      safestrcpy(buf, "UNKNOWN", buflen);
+      break;
+  }
+}
+
+int ps_listinfo(uint64 uaddr, int lim) {
+  struct proc *p;
+  struct procinfo p1;
+  int total = 0;
+  int written = 0;
+  if (lim < 0) {
+    return -1;
+  }
+
+  for (p = proc; p < &proc[NPROC]; p++) {
+    acquire(&p->lock);
+    if (p->state != UNUSED) {
+      total++;
+    }
+    release(&p->lock);
+  }
+
+  if (uaddr == 0) {
+    return total;
+  }
+
+  if (total > lim) {
+    return -2;
+  }
+
+  for (p = proc; p < &proc[NPROC]; p++) {
+    acquire(&p->lock);
+    if (p->state == UNUSED) {
+      release(&p->lock);
+      continue;
+    }
+    p1.pid = p->pid;
+    safestrcpy(p1.name, p->name, sizeof(p1.name));
+    procstate_to_str(p->state, p1.state, sizeof(p1.state));
+    p1.parent_pid = 0;
+    safestrcpy(p1.pname, "-", sizeof(p1.pname));
+    acquire(&wait_lock);
+    if (p->parent != 0) {
+      p1.parent_pid = p->parent->pid;
+      safestrcpy(p1.pname, p->parent->name, sizeof(p1.pname));
+    }
+    release(&wait_lock);
+    release(&p->lock);
+    if (copyout(myproc()->pagetable, uaddr + written * sizeof(struct procinfo), (char *)&p1, sizeof(struct procinfo)) < 0) {
+      return -3;
+    }
+    written++;
+  }
+  return written;
+}
 
 // helps ensure that wakeups of wait()ing
 // parents are not lost. helps obey the
