@@ -4,13 +4,14 @@
 #include "user/user.h"
 
 int main(void) {
-    struct procinfo buf[1];
-    int r = ps_listinfo(buf, 1);
-    if (r < 0) {
-        fprintf(2, "small_test: ps_listinfo(buf, 1) failed: %d\n", r);
-        exit(1);
-    }
+  struct procinfo buf[1];
+  int r = ps_listinfo(buf, 1);
 
-    printf("small_test: copied %d records\n", r);
+  if(r == -2){
+    printf("small_test: ok (buffer too small)\n");
     exit(0);
+  }
+
+  fprintf(2, "small_test: expected -2, got %d\n", r);
+  exit(1);
 }

@@ -1,15 +1,21 @@
 #ifndef PROCINFO_H
 #define PROCINFO_H
 
-#define PNAME_LEN 16
+#define PROCINFO_NAMELEN 16
 
-#define PSTATE_LEN 16
+enum procinfo_state {
+    PS_UNUSED = 0,
+    PS_USED,
+    PS_SLEEPING,
+    PS_RUNNABLE,
+    PS_RUNNING,
+    PS_ZOMBIE
+};
 
 struct procinfo {
     int pid;
-    char name[PNAME_LEN];
-    char pname[PNAME_LEN];
-    char state[PSTATE_LEN];
+    char name[PROCINFO_NAMELEN];
+    int state;
     int parent_pid;
 };
 

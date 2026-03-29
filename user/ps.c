@@ -3,33 +3,61 @@
 #include "kernel/procinfo.h"
 #include "user/user.h"
 
+static char* state_to_text(int state) {
+  switch(state){
+  case PS_UNUSED:   return "UNUSED";
+  case PS_USED:     return "USED";
+  case PS_SLEEPING: return "SLEEPING";
+  case PS_RUNNABLE: return "RUNNABLE";
+  case PS_RUNNING:  return "RUNNING";
+  case PS_ZOMBIE:   return "ZOMBIE";
+  default:          return "UNKNOWN";
+  }
+}
+
 int main(void) {
-    int n;
-    n = ps_listinfo(0, 0);
+  int cap = ps_listinfo(0, 0);
+  if(cap < 0){
+    fprintf(2, "ps: ps_listinfo(count) failed: %d\n", cap);
+    exit(1);
+  }
 
-    if (n < 0) {
-        fprintf(2, "ps_listinfo(0, 0) failed: %d\n", n);
-        exit(1);
+  if(cap == 0)
+    cap = 4;
+
+  for(;;){
+    struct procinfo *buf =
+      (struct procinfo *)malloc(cap * sizeof(struct procinfo));
+    if(buf == 0){
+      fprintf(2, "ps: malloc failed\n");
+      exit(1);
     }
 
-    if (n == 0) {
-        exit(0);
+    int n = ps_listinfo(buf, cap);
+    if(n >= 0){
+      printf("PID\tPPID\tSTATE       NAME\n");
+      for(int i = 0; i < n; i++){
+        printf("%d\t%d\t%s    %s\n",
+               buf[i].pid,
+               buf[i].parent_pid,
+               state_to_text(buf[i].state),
+               buf[i].name);
+      }
+      free(buf);
+      exit(0);
     }
 
-    struct procinfo buf[n];
-    int r = ps_listinfo(buf, n);
+    free(buf);
 
-    if (r < 0) {
-        fprintf(2, "ps_listinfo(buf, %d) failed: %d\n", n, r);
-        exit(1);
+    if(n == -2){
+      if(cap < 4)
+        cap = 4;
+      else
+        cap *= 2;
+      continue;
     }
 
-    printf("pid\tname\tstate    ppid    pname\n");
-
-    for (int i = 0; i < r; i++) {
-        printf("%d\t%s\t%s   %d      %s\n",
-        buf[i].pid, buf[i].name, buf[i].state, buf[i].parent_pid, buf[i].pname);
-    }
-
-    exit(0);
+    fprintf(2, "ps: ps_listinfo failed: %d\n", n);
+    exit(1);
+  }
 }
