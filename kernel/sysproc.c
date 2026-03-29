@@ -7,6 +7,14 @@
 #include "proc.h"
 #include "vm.h"
 
+uint64 sys_ps_listinfo(void) {
+  uint64 uaddr;
+  int lim;
+  argaddr(0, &uaddr);
+  argint(1, &lim);
+  return ps_listinfo(uaddr, lim);
+}
+
 uint64
 sys_exit(void)
 {

@@ -5,6 +5,7 @@
 #include "spinlock.h"
 #include "proc.h"
 #include "defs.h"
+#include "procinfo.h"
 
 struct cpu cpus[NCPU];
 
@@ -15,10 +16,61 @@ struct proc *initproc;
 int nextpid = 1;
 struct spinlock pid_lock;
 
+struct spinlock wait_lock;
+
 extern void forkret(void);
 static void freeproc(struct proc *p);
 
 extern char trampoline[]; // trampoline.S
+
+static int fill_procinfo(struct proc* p, struct procinfo* pi) {
+  acquire(&wait_lock);
+  acquire(&p->lock);
+
+  if (p->state == UNUSED) {
+    release(&p->lock);
+    release(&wait_lock);
+    return 0;
+  }
+
+  pi->pid = p->pid;
+  safestrcpy(pi->name, p->name, sizeof(pi->name));
+  pi->state = p->state;
+  pi->parent_pid = (p->parent != 0) ? p->parent->pid : 0;
+
+  release(&p->lock);
+  release(&wait_lock);
+  return 1;
+}
+
+int ps_listinfo(uint64 uaddr, int lim) {
+  struct proc *p;
+  struct procinfo pi;
+  int total = 0;
+  pagetable_t pagetable = myproc()->pagetable;
+  if (lim < 0) {
+    return -1;
+  }
+
+  for (p = proc; p < &proc[NPROC]; p++) {
+    if (fill_procinfo(p, &pi) == 0)
+      continue;
+
+    total++;
+
+    if (uaddr == 0)
+      continue;
+
+    if (total > lim)
+      return -2;
+
+    if (copyout(pagetable, uaddr + (uint64)(total - 1) * sizeof(struct procinfo), (char *)&pi, sizeof(pi)) < 0) {
+      return -3;
+    }
+  }
+
+  return total;
+}
 
 // helps ensure that wakeups of wait()ing
 // parents are not lost. helps obey the
