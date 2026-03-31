@@ -20,6 +20,11 @@ main(void)
     mknod("console", CONSOLE, 0);
     open("console", O_RDWR);
   }
+
+  mknod("null",     PSEUDODEV, 0);
+  mknod("zero",     PSEUDODEV, 1);
+  mknod("urandom",  PSEUDODEV, 2);
+  mknod("nullstat", PSEUDODEV, 3);
   dup(0);  // stdout
   dup(0);  // stderr
 
