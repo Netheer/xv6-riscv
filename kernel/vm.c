@@ -484,3 +484,159 @@ ismapped(pagetable_t pagetable, uint64 va)
   }
   return 0;
 }
+
+static int pte_is_leaf(pte_t pte) {
+  return (pte & (PTE_R | PTE_W | PTE_X)) != 0;
+}
+
+static void print_pte_flags(pte_t pte) {
+  char flags[] = "_______";
+
+  if (pte & PTE_R) flags[0] = 'R';
+  if (pte & PTE_W) flags[1] = 'W';
+  if (pte & PTE_X) flags[2] = 'X';
+  if (pte & PTE_U) flags[3] = 'U';
+  if (pte & PTE_G) flags[4] = 'G';
+  if (pte & PTE_A) flags[5] = 'A';
+  if (pte & PTE_D) flags[6] = 'D';
+
+  printf("%s", flags);
+}
+
+static void print_vm_indent(int level) {
+  for (int i = 0; i < level; i++) {
+    printf("........");
+  }
+}
+
+static void print_hex_fixed(uint64 value, int digits) {
+  char *hex = "0123456789ABCDEF";
+
+  printf("0x");
+  for (int i = (digits - 1) * 4; i >= 0; i -= 4) {
+    printf("%c", hex[(value >> i) & 0xF]);
+  }
+}
+
+static void vmprintwalk(pagetable_t pagetable, int level) {
+  for (int i = 0; i < 512; i++) {
+    pte_t pte = pagetable[i];
+
+    if ((pte & PTE_V) == 0)
+      continue;
+
+    print_vm_indent(level);
+    print_hex_fixed(i, 3);
+    printf(" -> ");
+    print_hex_fixed(PTE2PA(pte), 16);
+    printf(" ");
+    print_pte_flags(pte);
+    printf("\n");
+
+    if (!pte_is_leaf(pte)) {
+      pagetable_t child = (pagetable_t)PTE2PA(pte);
+      vmprintwalk(child, level + 1);
+
+      print_vm_indent(level + 1);
+      printf("<...>\n");
+    }
+  }
+}
+
+void vmprint(pagetable_t pagetable) {
+  printf("PAGETABLE ");
+  print_hex_fixed((uint64)pagetable, 16);
+  printf("\n");
+  vmprintwalk(pagetable, 0);
+}
+
+static int valid_ad_mask(int mask) {
+  if (mask == 0)
+    return 0;
+  if (mask & ~(PTE_A | PTE_D))
+    return 0;
+  return 1;
+}
+
+static pte_t* walk_user_leaf(pagetable_t pagetable, uint64 va) {
+  pte_t* pte;
+
+  if (va >= MAXVA)
+    return 0;
+
+  pte = walk(pagetable, va, 0);
+  if (pte == 0)
+    return 0;
+
+  if ((*pte & PTE_V) == 0)
+    return 0;
+
+  if ((*pte & PTE_U) == 0)
+    return 0;
+
+  return pte;
+}
+
+static int range_page_bounds(uint64 buf, int len, uint64 *start, uint64 *end) {
+  uint64 last;
+
+  if (len <= 0)
+    return -1;
+
+  last = buf + len - 1;
+  if (last < buf)
+    return -1;
+
+  *start = PGROUNDDOWN(buf);
+  *end = PGROUNDDOWN(last);
+  return 0;
+}
+
+int pgclearflags(pagetable_t pagetable, uint64 buf, int len, int mask) {
+  uint64 start, end, va;
+  pte_t* pte;
+  if (!valid_ad_mask(mask))
+    return -1;
+
+  if (range_page_bounds(buf, len, &start, &end) < 0)
+    return -1;
+
+  for (va = start; va <= end; va += PGSIZE) {
+    pte = walk_user_leaf(pagetable, va);
+    if (pte == 0)
+      return -1;
+  }
+
+  for (va = start; va <= end; va += PGSIZE) {
+    pte = walk_user_leaf(pagetable, va);
+    *pte &= ~mask;
+  }
+
+  sfence_vma();
+  return 0;
+}
+
+int pgaccessinfo(pagetable_t pagetable, uint64 buf, int len, int mask) {
+  uint64 start, end, va;
+  pte_t *pte;
+
+  if (!valid_ad_mask(mask))
+    return -1;
+
+  if (range_page_bounds(buf, len, &start, &end) < 0)
+    return -1;
+
+  for (va = start; va <= end; va += PGSIZE) {
+    pte = walk_user_leaf(pagetable, va);
+    if (pte == 0)
+      return -1;
+  }
+
+  for (va = start; va <= end; va += PGSIZE) {
+    pte = walk_user_leaf(pagetable, va);
+    if ((*pte & mask) != 0)
+      return 1;
+  }
+
+  return 0;
+}
