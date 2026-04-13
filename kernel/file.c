@@ -12,7 +12,6 @@
 #include "file.h"
 #include "stat.h"
 #include "proc.h"
-#include "mutex.h"
 
 struct devsw devsw[NDEV];
 struct {
@@ -67,16 +66,8 @@ fileclose(struct file *f)
     panic("fileclose");
 
   if (f->type == FD_MUTEX) {
-    struct mutex* m = f->mutex;
-
-    acquire(&m->lock);
-    if (m->locked && m->owner == myproc()) {
-      m->locked = 0;
-      m->owner = 0;
-      wakeup(m);    
-    }
-
-    release(&m->lock);
+    if (holdingsleep(f->mutex))
+      releasesleep(f->mutex);
   }
 
   if(--f->ref > 0){
