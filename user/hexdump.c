@@ -34,7 +34,12 @@ int main(int argc, char *argv[]) {
     int want = n - total;
     if(want > 64) want = 64;
     int got = read(fd, buf, want);
-    if(got <= 0) break;
+    if(got < 0) {
+      fprintf(2, "hexdump: read error\n");
+      close(fd);
+      exit(1);
+    }
+    if(got == 0) break;
     for(int i = 0; i < got; i++){
       if(total + i > 0)
         write(1, " ", 1);

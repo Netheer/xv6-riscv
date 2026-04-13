@@ -31,9 +31,7 @@ static int pseudoread(int user_dst, uint64 dst, int n, int minor) {
     return 0;
 
   } else if(minor == MINOR_ZERO) {
-    char buf[64];
-    int i;
-    for(i = 0; i < 64; i++) buf[i] = 0;
+    static char buf[64];
     int total = 0;
     while(total < n){
       int batch = n - total;

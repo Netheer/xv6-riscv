@@ -21,10 +21,11 @@ main(void)
     open("console", O_RDWR);
   }
 
-  mknod("null",     PSEUDODEV, 0);
-  mknod("zero",     PSEUDODEV, 1);
-  mknod("urandom",  PSEUDODEV, 2);
-  mknod("nullstat", PSEUDODEV, 3);
+  struct stat st;
+  if(stat("null",     &st) < 0) mknod("null",     PSEUDODEV, 0);
+  if(stat("zero",     &st) < 0) mknod("zero",     PSEUDODEV, 1);
+  if(stat("urandom",  &st) < 0) mknod("urandom",  PSEUDODEV, 2);
+  if(stat("nullstat", &st) < 0) mknod("nullstat", PSEUDODEV, 3);
   dup(0);  // stdout
   dup(0);  // stderr
 
