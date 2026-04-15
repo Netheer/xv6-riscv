@@ -107,3 +107,17 @@ sys_uptime(void)
   release(&tickslock);
   return xticks;
 }
+
+uint64 sys_getrtc(void) {
+  uint64 uaddr;
+  uint64 time;
+
+  argaddr(0, &uaddr);
+  time = rtc_read_time();
+
+  if (copyout(myproc()->pagetable, uaddr, (char *)&time, sizeof(time)) < 0) {
+    return -1;
+  }
+
+  return 0;
+}
