@@ -110,7 +110,7 @@ sys_uptime(void)
 
 uint64 sys_getrtc(void) {
   uint64 uaddr;
-  uint64 time;
+  int64 time;
 
   argaddr(0, &uaddr);
   time = rtc_read_time();
