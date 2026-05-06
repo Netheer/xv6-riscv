@@ -107,3 +107,48 @@ sys_uptime(void)
   release(&tickslock);
   return xticks;
 }
+
+uint64 sys_dmesg(void) {
+  uint64 user_dst;
+  int size;
+  char* kbuf;
+  int n;
+
+  argaddr(0, &user_dst);
+  argint(1, &size);
+
+  if (size <= 0)
+    return -1;
+
+  if (size > DMSG_BUFSIZE)
+    size = DMSG_BUFSIZE;
+
+  kbuf = kalloc();
+  if (kbuf == 0)
+    return -1;
+
+  n = dmesg_read(kbuf, size);
+  if (n < 0) {
+    kfree(kbuf);
+    return -1;
+  }
+
+  if (copyout(myproc()->pagetable, user_dst, kbuf, n + 1) < 0) {
+    kfree(kbuf);
+    return -1;
+  }
+
+  kfree(kbuf);
+
+  return n;
+}
+
+uint64 sys_logctl() {
+  int mask;
+  int nticks;
+
+  argint(0, &mask);
+  argint(1, &nticks);
+
+  return logctl(mask, nticks);
+}

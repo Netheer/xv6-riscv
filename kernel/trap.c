@@ -195,10 +195,16 @@ devintr()
 
     if(irq == UART0_IRQ){
       uartintr();
+      if (log_enabled(LOG_INTR))
+        pr_msg("interrupt uart irq=%d", irq);
     } else if(irq == VIRTIO0_IRQ){
       virtio_disk_intr();
+      if (log_enabled(LOG_INTR))
+        pr_msg("interrupt virtio_disk irq=%d", irq);
     } else if(irq){
       printf("unexpected interrupt irq=%d\n", irq);
+      if (log_enabled(LOG_INTR))
+        pr_msg("interrupt unexpected irq=%d", irq);
     }
 
     // the PLIC allows each device to raise at most one

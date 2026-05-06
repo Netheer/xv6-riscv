@@ -135,6 +135,10 @@ kexec(char *path, char **argv)
   p->trapframe->sp = sp; // initial stack pointer
   proc_freepagetable(oldpagetable, oldsz);
 
+  if (log_enabled(LOG_EXEC))
+    pr_msg("proc exec pid=%d path=%s name=%s argc=%ld",
+      p->pid, path, p->name, argc);
+
   return argc; // this ends up in a0, the first argument to main(argc, argv)
 
  bad:
