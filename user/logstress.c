@@ -6,7 +6,7 @@
 // Stress xv6 logging system by having several processes writing
 // concurrently to their own file (e.g., logstress f1 f2 f3 f4)
 
-#define BUFSZ 500
+#define BUFSZ 512
 
 char buf[BUFSZ];
 
@@ -14,7 +14,7 @@ int
 main(int argc, char **argv)
 {
   int fd, n;
-  enum { N = 250, SZ=2000 };
+  enum { N = 10, SZ = BUFSZ };
   
   for (int i = 1; i < argc; i++){
     int pid1 = fork();
@@ -32,9 +32,12 @@ main(int argc, char **argv)
       for(i = 0; i < N; i++){
         if((n = write(fd, buf, SZ)) != SZ){
           printf("write failed %d\n", n);
+          close(fd);
           exit(1);
         }
       }
+
+      close(fd);
       exit(0);
     }
   }

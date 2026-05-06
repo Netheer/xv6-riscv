@@ -13,3 +13,12 @@
 #define MAXPATH      128   // maximum file path name
 #define USERSTACK    1     // user stack pages
 
+#define DMSG_NPAGE 1
+#define DMSG_PGSIZE 4096
+#define DMSG_BUFSIZE (DMSG_NPAGE * DMSG_PGSIZE)
+
+#define LOG_SYSCALL 0x1
+#define LOG_INTR 0x2
+#define LOG_PROC 0x4
+#define LOG_EXEC 0x8
+#define LOG_ALL 0xf
